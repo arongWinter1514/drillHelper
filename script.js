@@ -1376,10 +1376,28 @@ function beginImport(data, mode) {
     commitImport(candidate);
 }
 
+// 判斷絕標是否超出指定場地範圍，使用實際座標（包含方向與步數）。
+function isSetOutsideFieldRange(set, frontRange, sideRange) {
+    // 先保留碼線數字層級的檢查，避免座標尚未填完整時漏掉超出範圍的碼線。
+    if ((!isBlank(set.frontMark) && Number(set.frontMark) < frontRange) ||
+        (!isBlank(set.sideMark) && Number(set.sideMark) > sideRange)) {
+        return true;
+    }
+
+    const point = getNumericPoint(set);
+    if (!point) return false;
+
+    // 50 為中心，每隔 5 碼線是 8 Steps；左側為負，右側為正。
+    const frontBoundary = ((50 - frontRange) / 5) * 8;
+    const sideBoundary = sideRange * 8;
+
+    return point.x < -frontBoundary || point.x > frontBoundary ||
+        point.y < 0 || point.y > sideBoundary;
+}
+
 function getOutOfRangeImportedSets(candidateSets, frontRange, sideRange) {
     return candidateSets.filter(set =>
-        (!isBlank(set.frontMark) && Number(set.frontMark) < frontRange) ||
-        (!isBlank(set.sideMark) && Number(set.sideMark) > sideRange)
+        isSetOutsideFieldRange(set, frontRange, sideRange)
     ).map(set => `Set #${set.label}`);
 }
 
@@ -1857,8 +1875,7 @@ fieldForm.addEventListener("submit", function (event) {
 
     // 找出套用新範圍後會超出場地的既有絕標。
     const outOfRangeSets = sets.filter(function (set) {
-        return (!isBlank(set.frontMark) && Number(set.frontMark) < frontRange) ||
-            (!isBlank(set.sideMark) && Number(set.sideMark) > sideRange);
+        return isSetOutsideFieldRange(set, frontRange, sideRange);
     });
 
     if (outOfRangeSets.length > 0) {
