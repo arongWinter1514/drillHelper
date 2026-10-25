@@ -873,13 +873,15 @@ function addSet() {
             "frontMark",
             "frontSide",
             "frontDirection",
-            "frontSteps",
             "sideMark",
-            "sideDirection",
-            "sideSteps"
+            "sideDirection"
         ].forEach(function (field) {
             newSet[field] = previousSet[field];
         });
+
+        // 新增 Set 時保留方向與碼線設定，但前、側標步數預設清空。
+        newSet.frontSteps = "";
+        newSet.sideSteps = "";
     }
 
     nextInternalId += 1;
@@ -1680,7 +1682,7 @@ function openPointSetChoiceModal(options) {
     pointSetChoiceOptions.innerHTML = options.map((set, index) => `
         <label class="point-set-choice-option">
             <input type="radio" name="pointSetChoice" value="${set.id}" ${index === 0 ? "checked" : ""}>
-            <span>移動到 Set (#${escapeHtml(set.label)})</span>
+            <span>檢視 Set #${escapeHtml(set.label)}</span>
         </label>
     `).join("");
     pointSetChoiceModal.hidden = false;
