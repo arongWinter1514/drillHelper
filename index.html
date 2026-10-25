@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圖點預習小助手</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <main class="workspace">
+            <div id="fieldDrawing" class="field-drawing" aria-label="場地座標圖"><button id="downloadImageButton" class="field-download-button" type="button">下載圖片</button></div>
+            <footer class="workspace-footer">
+                <a href="https://docs.google.com/forms/d/e/1FAIpQLSesZ_i5hAVAT-NpJyk7n2RIpr8EpBAiHoLeyqTZ6QnDd8a3HQ/viewform" target="_blank" rel="noopener noreferrer">問題回報／意見回饋</a>
+            </footer>
+        </main>
+        <aside id="sidebar" class="sidebar">
+            <button id="toggleButton" class="toggle-button" type="button" aria-label="收起面板" title="收起面板">▶</button>
+            <input id="importFileInput" type="file" accept=".json,application/json" hidden>
+            <div class="sidebar-toolbar">
+                <button id="resizeFieldButton" type="button">調整場地大小</button>
+                <button id="saveSetsButton" type="button">儲存絕標</button>
+                <button id="importSetsButton" type="button">匯入絕標</button>
+            </div>
+            <div id="importModeModal" class="modal-overlay" hidden>
+                <section class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="importModeTitle">
+                    <h2 id="importModeTitle">匯入絕標</h2><p>要如何處理匯入的 Set？</p>
+                    <div class="modal-actions import-mode-actions">
+                        <button id="cancelImportModeButton" type="button">取消</button>
+                        <button id="appendImportButton" type="button">追加</button>
+                        <button id="replaceImportButton" type="button">全部取代</button>
+                    </div>
+                </section>
+            </div>
+            <div id="pointSetChoiceModal" class="modal-overlay" hidden>
+                <section class="modal-dialog point-set-choice-dialog" role="dialog" aria-modal="true" aria-label="選擇 Set">
+                    <div id="pointSetChoiceOptions" class="point-set-choice-options"></div>
+                    <div class="modal-actions">
+                        <button id="cancelPointSetChoiceButton" type="button">取消</button>
+                        <button id="confirmPointSetChoiceButton" type="button">確認</button>
+                    </div>
+                </section>
+            </div>
+            <div id="deleteSetModal" class="modal-overlay" hidden>
+                <section class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="deleteSetModalTitle">
+                    <h2 id="deleteSetModalTitle">確認刪除Set #__？</h2>
+                    <p>請留意，標點一經刪除將無法復原。</p>
+                    <div class="modal-actions">
+                        <button id="cancelDeleteSetButton" type="button">取消</button>
+                        <button id="confirmDeleteSetButton" type="button">確認</button>
+                    </div>
+                </section>
+            </div>
+            <div id="fieldModal" class="modal-overlay" hidden>
+                <section class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="fieldModalTitle">
+                    <h2 id="fieldModalTitle">調整場地大小</h2>
+                    <form id="fieldForm">
+                        <div class="field-setting-row"><label for="frontRangeInput">前標範圍：</label><input id="frontRangeInput" type="number" min="10" max="45" step="5" required><small>範圍 45～10</small></div>
+                        <div class="field-setting-row"><label for="sideRangeInput">側標範圍：</label><input id="sideRangeInput" type="number" min="1" max="8" step="1" required><small>範圍 1～8</small></div>
+                        <p id="fieldError" class="field-error" role="alert" hidden></p>
+                        <div class="modal-actions"><button id="cancelFieldButton" type="button">取消</button><button type="submit">確認</button></div>
+                    </form>
+                </section>
+            </div>
+            <div id="panelContent" class="panel-content"><div id="setList" class="set-list"></div></div>
+        </aside>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
