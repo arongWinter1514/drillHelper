@@ -770,7 +770,7 @@ function renderCalculationBlock(startSet, endSet) {
                 </svg>
             </span>
             <div class="calculation-line">
-                <span class="calculation-label">步伐大小：</span><span>${formatNumber(stepSize)}步</span>
+                <span class="calculation-label">步伐大小：</span><span>${formatNumber(stepSize)} 步</span>
             </div>
             <div class="calculation-line">
                 <span class="calculation-label">中點：</span><span>${escapeHtml(midpoint)}</span>
