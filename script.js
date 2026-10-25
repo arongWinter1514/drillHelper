@@ -1594,6 +1594,15 @@ function renderFieldGrid() {
     if (downloadButton) host.appendChild(downloadButton);
     const svgRoot = host.querySelector("svg");
     if (svgRoot) {
+        // 編輯區展開時，點擊左側場地圖的空白處即可收合；點擊其他圖點則保留原本行為。
+        svgRoot.addEventListener("click", event => {
+            if (event.target.closest(".field-set-point-group")) return;
+            if (expandedSetId !== null) {
+                expandedSetId = null;
+                renderSetList();
+                updateFieldPointHighlights();
+            }
+        });
         svgRoot.querySelectorAll(".field-set-point-group").forEach(group => {
             const id = Number(group.getAttribute("data-set-id"));
             group.addEventListener("click", () => {
