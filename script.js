@@ -1,21 +1,111 @@
 
-/* ===== 側邊面板收合 ===== */
+/* ===== 裝置寬度提醒 ===== */
+if (window.innerWidth < 1200) {
+    window.alert("建議使用電腦瀏覽。");
+}
+
+/* ===== 側邊面板收合與手機版底部面板 ===== */
 const sidebar = document.getElementById("sidebar");
 const toggleButton = document.getElementById("toggleButton");
+const mobileExpandButton = document.getElementById("mobileExpandButton");
+const mobileFullButton = document.getElementById("mobileFullButton");
+const mobileCollapseButton = document.getElementById("mobileCollapseButton");
+const mobileHalfButton = document.getElementById("mobileHalfButton");
+const panelContent = document.getElementById("panelContent");
+const workspaceFooter = document.querySelector(".workspace-footer");
+const workspace = document.querySelector(".workspace");
+const mobileLayoutQuery = window.matchMedia("(max-width: 991px)");
+let mobilePanelState = "half";
+let lastLayoutWasMobile = mobileLayoutQuery.matches;
+const footerOriginalParent = workspaceFooter.parentElement;
+const footerOriginalNextSibling = workspaceFooter.nextSibling;
+
+function updateDesktopToggle() {
+    const isCollapsed = sidebar.classList.contains("collapsed");
+    toggleButton.textContent = isCollapsed ? "◀" : "▶";
+    toggleButton.setAttribute("aria-label", isCollapsed ? "展開面板" : "收起面板");
+    toggleButton.title = isCollapsed ? "展開面板" : "收起面板";
+}
+
+function updateMobilePanelState() {
+    sidebar.classList.toggle("mobile-collapsed", mobilePanelState === "collapsed");
+    sidebar.classList.toggle("mobile-full", mobilePanelState === "full");
+    sidebar.classList.toggle("mobile-half", mobilePanelState === "half");
+
+    mobileExpandButton.hidden = mobilePanelState !== "collapsed";
+    mobileFullButton.hidden = mobilePanelState !== "half";
+    mobileCollapseButton.hidden = mobilePanelState !== "half";
+    mobileHalfButton.hidden = mobilePanelState !== "full";
+
+    mobileExpandButton.textContent = "▲";
+    mobileFullButton.textContent = "▲";
+    mobileCollapseButton.textContent = "▼";
+    mobileHalfButton.textContent = "▼";
+
+    mobileExpandButton.setAttribute("aria-label", "展開至半屏");
+    mobileExpandButton.title = "展開至半屏";
+    mobileFullButton.setAttribute("aria-label", "展開至全屏");
+    mobileFullButton.title = "展開至全屏";
+    mobileCollapseButton.setAttribute("aria-label", "收合輸入區");
+    mobileCollapseButton.title = "收合輸入區";
+    mobileHalfButton.setAttribute("aria-label", "退回半屏");
+    mobileHalfButton.title = "退回半屏";
+}
+
+function moveFooterForLayout(isMobile) {
+    if (isMobile) {
+        panelContent.appendChild(workspaceFooter);
+    } else if (workspaceFooter.parentElement !== footerOriginalParent) {
+        if (footerOriginalNextSibling && footerOriginalNextSibling.parentElement === footerOriginalParent) {
+            footerOriginalParent.insertBefore(workspaceFooter, footerOriginalNextSibling);
+        } else {
+            footerOriginalParent.appendChild(workspaceFooter);
+        }
+    }
+}
+
+function applyResponsiveLayout() {
+    const isMobile = mobileLayoutQuery.matches;
+    moveFooterForLayout(isMobile);
+    if (isMobile) {
+        sidebar.classList.remove("collapsed");
+        if (!lastLayoutWasMobile) mobilePanelState = "half";
+        updateMobilePanelState();
+    } else {
+        sidebar.classList.remove("mobile-collapsed", "mobile-full", "mobile-half");
+        updateDesktopToggle();
+    }
+    lastLayoutWasMobile = isMobile;
+}
 
 toggleButton.addEventListener("click", function () {
-    const isCollapsed = sidebar.classList.toggle("collapsed");
-
-    if (isCollapsed) {
-        toggleButton.textContent = "◀";
-        toggleButton.setAttribute("aria-label", "展開面板");
-        toggleButton.title = "展開面板";
-    } else {
-        toggleButton.textContent = "▶";
-        toggleButton.setAttribute("aria-label", "收起面板");
-        toggleButton.title = "收起面板";
-    }
+    sidebar.classList.toggle("collapsed");
+    updateDesktopToggle();
 });
+
+mobileExpandButton.addEventListener("click", function () {
+    mobilePanelState = "half";
+    updateMobilePanelState();
+});
+mobileFullButton.addEventListener("click", function () {
+    mobilePanelState = "full";
+    updateMobilePanelState();
+});
+mobileCollapseButton.addEventListener("click", function () {
+    mobilePanelState = "collapsed";
+    updateMobilePanelState();
+});
+mobileHalfButton.addEventListener("click", function () {
+    mobilePanelState = "half";
+    updateMobilePanelState();
+});
+
+if (typeof mobileLayoutQuery.addEventListener === "function") {
+    mobileLayoutQuery.addEventListener("change", applyResponsiveLayout);
+} else {
+    mobileLayoutQuery.addListener(applyResponsiveLayout);
+}
+applyResponsiveLayout();
 
 
 /* ===== 場地選項設定 =====
