@@ -126,6 +126,15 @@ function showStepValidationPopup(input, message) {
 }
 
 
+const AUTO_SAVE_KEY = "drillHelper:autoSave:v1";
+let restoredAutoSave = null;
+try {
+    const rawAutoSave = sessionStorage.getItem(AUTO_SAVE_KEY);
+    if (rawAutoSave) restoredAutoSave = JSON.parse(rawAutoSave);
+} catch (error) {
+    restoredAutoSave = null;
+}
+
 const sets = [
     createSet(0, "0")
 ];
@@ -239,6 +248,29 @@ function getStepValidationMessage(value) {
 
 function hasInvalidStepValue(set) {
     return !isValidStepValue(set.frontSteps) || !isValidStepValue(set.sideSteps);
+}
+
+// 展開中的 Set 若有不合法的步數或 Counts，必須先修正才能收合或切換。
+function hasInvalidEditableValues(set) {
+    if (!set) return false;
+    return Boolean(
+        getStepValidationMessage(set.frontSteps) ||
+        getStepValidationMessage(set.sideSteps) ||
+        getCountsValidationMessage(set.counts)
+    );
+}
+
+function canLeaveExpandedSet() {
+    if (expandedSetId === null) return true;
+    const currentSet = sets.find(item => item.id === expandedSetId);
+    if (!hasInvalidEditableValues(currentSet)) return true;
+
+    const invalidFields = [];
+    if (getStepValidationMessage(currentSet.frontSteps)) invalidFields.push("前標步數");
+    if (getStepValidationMessage(currentSet.sideSteps)) invalidFields.push("側標步數");
+    if (getCountsValidationMessage(currentSet.counts)) invalidFields.push("Counts");
+    showFieldError(`Set #${currentSet.label} 的${invalidFields.join("、")}輸入不合法，請修正後再收合或切換 Set。`);
+    return false;
 }
 
 /* ===== Set 摘要 ===== */
@@ -745,6 +777,7 @@ function renderCalculationBlock(startSet, endSet) {
                     </svg>
                 </span>
                 <span class="calculation-hold">立定</span>
+                <button type="button" class="insert-set-button" data-insert-after-set-id="${startSet.id}" aria-label="在 Set #${escapeHtml(startSet.label)} 與 Set #${escapeHtml(endSet.label)} 之間插入絕標" title="插入絕標">+</button>
             </div>
         `;
     }
@@ -781,6 +814,7 @@ function renderCalculationBlock(startSet, endSet) {
                     ${crossings.map(text => `<span>${escapeHtml(text)}</span>`).join("")}
                 </span>
             </div>
+            <button type="button" class="insert-set-button" data-insert-after-set-id="${startSet.id}" aria-label="在 Set #${escapeHtml(startSet.label)} 與 Set #${escapeHtml(endSet.label)} 之間插入絕標" title="插入絕標">+</button>
         </div>
     `;
 }
@@ -890,6 +924,7 @@ function addSet() {
     expandedSetId = newSet.id;
 
     renderSetList();
+    saveAutoSnapshot();
 
     // 讓新加入的 Set 出現在可視範圍內。
     const newRow = setList.querySelector(
@@ -904,6 +939,40 @@ function addSet() {
     }
 }
 
+
+/* ===== 在兩張相鄰 Set 之間插入 Set ===== */
+function insertSetBetween(startSetId) {
+    // 沿用 V42 的規則：目前展開的 Set 有不合法值時，不允許切換或插入。
+    if (!canLeaveExpandedSet()) return;
+
+    const startIndex = sets.findIndex(item => item.id === startSetId);
+    if (startIndex < 0 || startIndex >= sets.length - 1) return;
+
+    const previousSet = sets[startIndex];
+    const followingSet = sets[startIndex + 1];
+    // 插入的預設編號依插入位置決定，沿用後方 Set 的標籤；允許與原有標籤重複。
+    const newSet = createSet(nextInternalId, followingSet.label);
+
+    // 與底部「新增絕標」一致：複製前一張 Set 的座標設定，步數與 Counts 保持空白。
+    ["frontMark", "frontSide", "frontDirection", "sideMark", "sideDirection"].forEach(function (field) {
+        newSet[field] = previousSet[field];
+    });
+    newSet.frontSteps = "";
+    newSet.sideSteps = "";
+    newSet.counts = "";
+    // createSet 的 countType 預設值與底部「新增絕標」一致。
+
+    nextInternalId += 1;
+    sets.splice(startIndex + 1, 0, newSet);
+    expandedSetId = newSet.id;
+    renderSetList();
+    saveAutoSnapshot();
+
+    const newRow = setList.querySelector(`[data-set-id="${newSet.id}"]`);
+    if (newRow) {
+        newRow.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+}
 
 /* ===== 點擊事件：展開、收合、新增 ===== */
 setList.addEventListener("click", function (event) {
@@ -922,6 +991,12 @@ setList.addEventListener("click", function (event) {
         return;
     }
 
+    const insertButton = event.target.closest(".insert-set-button");
+    if (insertButton) {
+        insertSetBetween(Number(insertButton.dataset.insertAfterSetId));
+        return;
+    }
+
     const addButton = event.target.closest(".add-set-button");
 
     if (addButton) {
@@ -937,6 +1012,10 @@ setList.addEventListener("click", function (event) {
 
     const row = summary.closest(".set-row");
     const clickedId = Number(row.dataset.setId);
+
+    // 編輯中的數值若不合法，不允許收合或切換到其他 Set。
+    if (expandedSetId !== null && expandedSetId !== clickedId && !canLeaveExpandedSet()) return;
+    if (expandedSetId === clickedId && !canLeaveExpandedSet()) return;
 
     // 同一列再次點擊即可收合。
     expandedSetId = expandedSetId === clickedId
@@ -963,15 +1042,21 @@ setList.addEventListener("input", function (event) {
         const summary = row.querySelector(".set-summary");
         if (summary) summary.setAttribute("aria-label", `編輯 Set #${set.label}`);
         renderFieldGrid();
+        saveAutoSnapshot();
         return;
     }
 
     if (field === "counts") {
         set.counts = event.target.value;
+        // 編輯中不顯示警告；提示只會在離開欄位時出現。
+        hideStepValidationPopup();
+        event.target.classList.remove("invalid");
+        event.target.setAttribute("aria-invalid", "false");
         refreshSetStepsSummary(set);
         const setIndex = sets.findIndex(item => item.id === set.id);
         if (setIndex > 0) refreshCalculationForPair(sets[setIndex - 1], set);
         renderFieldGrid();
+        saveAutoSnapshot();
         return;
     }
 
@@ -994,6 +1079,7 @@ setList.addEventListener("input", function (event) {
             refreshSetStepsSummary(sets[setIndex + 1]);
         }
         renderFieldGrid();
+        saveAutoSnapshot();
     }
 });
 
@@ -1041,34 +1127,109 @@ setList.addEventListener("click", function (event) {
     }
     // 按鈕調整步數時也即時更新左側場地圖，與鍵盤輸入保持一致。
     renderFieldGrid();
+    saveAutoSnapshot();
     input.focus({ preventScroll: true });
 });
 
 // 重新編輯時先收起提示，直到再次離開欄位才重新驗證顯示。
 setList.addEventListener("focusin", function (event) {
     const field = event.target.dataset.field;
-    if (field !== "frontSteps" && field !== "sideSteps") return;
+    if (field !== "frontSteps" && field !== "sideSteps" && field !== "counts") return;
     hideStepValidationPopup();
     event.target.classList.remove("invalid");
     event.target.setAttribute("aria-invalid", "false");
 });
 
-// 離開步數欄位才顯示驗證錯誤；空白可保留，但不完整絕標不會計算。
+function getCountsValidationMessage(value) {
+    if (isBlank(value)) return "";
+    const text = String(value).trim();
+    if (!/^\d+$/.test(text) || !Number.isSafeInteger(Number(text)) || Number(text) <= 0) {
+        return "Counts 必須是正整數。";
+    }
+    return "";
+}
+
+
+// 自動保存只保留本分頁最新的合法輸入；sessionStorage 會在分頁關閉時清除。
+function saveAutoSnapshot() {
+    try {
+        let previous = null;
+        try {
+            previous = JSON.parse(sessionStorage.getItem(AUTO_SAVE_KEY) || "null");
+        } catch (error) {
+            previous = null;
+        }
+        const previousById = new Map((previous?.sets || []).map(item => [Number(item.id), item]));
+        const snapshot = {
+            nextInternalId,
+            frontRange: getCurrentFrontRange(),
+            sideRange: getCurrentSideRange(),
+            sets: sets.map(set => {
+                const old = previousById.get(Number(set.id));
+                const saved = { ...set };
+                if (!isValidStepValue(set.frontSteps)) saved.frontSteps = old?.frontSteps ?? "";
+                if (!isValidStepValue(set.sideSteps)) saved.sideSteps = old?.sideSteps ?? "";
+                if (getCountsValidationMessage(set.counts)) saved.counts = old?.counts ?? "";
+                return saved;
+            })
+        };
+        sessionStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(snapshot));
+    } catch (error) {
+        // 自動保存是額外保護，不顯示失敗提示，也不影響原有操作。
+    }
+}
+
+function restoreAutoSnapshot() {
+    if (!restoredAutoSave || !Array.isArray(restoredAutoSave.sets) || !restoredAutoSave.sets.length) return;
+    try {
+        const savedSets = restoredAutoSave.sets;
+        sets.splice(0, sets.length);
+        savedSets.forEach((item, index) => {
+            const set = { ...createSet(Number(item.id) || index, String(item.label ?? index)), ...item };
+            if (!isValidStepValue(set.frontSteps)) set.frontSteps = "";
+            if (!isValidStepValue(set.sideSteps)) set.sideSteps = "";
+            if (getCountsValidationMessage(set.counts)) set.counts = "";
+            if (!Array.isArray(FIELD_OPTIONS.frontMarks) || !FIELD_OPTIONS.frontMarks.includes(Number(set.frontMark))) set.frontMark = 50;
+            if (!FIELD_OPTIONS.sideMarks.includes(Number(set.sideMark))) set.sideMark = 0;
+            sets.push(set);
+        });
+        nextInternalId = Math.max(Number(restoredAutoSave.nextInternalId) || 1, ...sets.map(item => Number(item.id) + 1));
+        if (Number.isFinite(Number(restoredAutoSave.frontRange))) {
+            const frontRange = Number(restoredAutoSave.frontRange);
+            FIELD_OPTIONS.frontMarks = [];
+            for (let mark = 50; mark >= frontRange; mark -= 5) FIELD_OPTIONS.frontMarks.push(mark);
+        }
+        if (Number.isFinite(Number(restoredAutoSave.sideRange))) {
+            FIELD_OPTIONS.sideMarks = [];
+            for (let mark = 0; mark <= Number(restoredAutoSave.sideRange); mark++) FIELD_OPTIONS.sideMarks.push(mark);
+        }
+    } catch (error) {
+        sets.splice(0, sets.length, createSet(0, "0"));
+        nextInternalId = 1;
+    }
+}
+
+restoreAutoSnapshot();
+
+// 離開步數或 Counts 欄位才顯示驗證錯誤；空白可保留。
 setList.addEventListener("focusout", function (event) {
     const field = event.target.dataset.field;
-    if (field !== "frontSteps" && field !== "sideSteps") return;
+    if (field !== "frontSteps" && field !== "sideSteps" && field !== "counts") return;
     const row = event.target.closest(".set-row");
     if (!row) return;
     const set = sets.find(item => item.id === Number(row.dataset.setId));
     if (!set) return;
 
-    const key = `${set.id}:${field}`;
-    stepTouched.add(key);
-    const message = getStepValidationMessage(set[field]);
+    const isCounts = field === "counts";
+    const message = isCounts ? getCountsValidationMessage(set.counts) : getStepValidationMessage(set[field]);
     const invalid = Boolean(message);
-    // 合法值離開欄位後，以數字型態存入內部資料；空白仍可顯示為空，但計算時視為 0。
-    // 若輸入「1.」這類尾端小數點，則將內部值正規化為整數。
-    if (!invalid && !isBlank(set[field])) set[field] = getEffectiveStepValue(set[field]);
+    if (!isCounts) {
+        const key = `${set.id}:${field}`;
+        stepTouched.add(key);
+        // 合法值離開欄位後，以數字型態存入內部資料；空白仍可顯示為空，但計算時視為 0。
+        // 若輸入「1.」這類尾端小數點，則將內部值正規化為整數。
+        if (!invalid && !isBlank(set[field])) set[field] = getEffectiveStepValue(set[field]);
+    }
     event.target.classList.toggle("invalid", invalid);
     event.target.setAttribute("aria-invalid", invalid ? "true" : "false");
     if (invalid) {
@@ -1111,6 +1272,7 @@ setList.addEventListener("change", function (event) {
             // Counts 已由 input 事件即時更新；失焦時不必重繪整份清單，
             // 否則會在使用者點擊其他按鈕前先替換掉被點擊的 DOM。
             set.counts = value;
+            saveAutoSnapshot();
             return;
 
         case "countType":
@@ -1171,6 +1333,7 @@ setList.addEventListener("change", function (event) {
     // 延後整份清單重繪，讓目前這次滑鼠點擊能先正常送達目標元素。
     // 例如從下拉選單切換碼線後，直接點「新增絕標」或其他按鈕。
     renderFieldGrid();
+    saveAutoSnapshot();
     window.setTimeout(renderSetList, 0);
 });
 
@@ -1424,6 +1587,7 @@ function commitImport(candidate) {
     fieldModalContext = "normal";
     renderSetList();
     renderFieldGrid();
+    saveAutoSnapshot();
 }
 
 /* ===== 場地座標網格與圖點 ===== */
@@ -1598,6 +1762,7 @@ function renderFieldGrid() {
         svgRoot.addEventListener("click", event => {
             if (event.target.closest(".field-set-point-group")) return;
             if (expandedSetId !== null) {
+                if (!canLeaveExpandedSet()) return;
                 expandedSetId = null;
                 renderSetList();
                 updateFieldPointHighlights();
@@ -1659,6 +1824,8 @@ function renderFieldGrid() {
 }
 
 function toggleAndFocusSet(id) {
+    // 編輯中的數值若不合法，不允許收合或切換到其他 Set。
+    if (expandedSetId !== null && !canLeaveExpandedSet()) return;
     // 若該 Set 已展開，再點一次圖點就收合；否則展開並捲動到收合列。
     expandedSetId = expandedSetId === id ? null : id;
     renderSetList();
@@ -1753,6 +1920,7 @@ confirmDeleteSetButton.addEventListener("click", function () {
     }
     if (hoveredSidebarSetId === deleteId) hoveredSidebarSetId = null;
     renderSetList();
+    saveAutoSnapshot();
 });
 
 /* ===== 側邊 Set 列與場地圖點同步醒目標示 ===== */
@@ -1778,7 +1946,7 @@ setList.addEventListener("mouseout", function (event) {
 /* ===== 初始畫面 ===== */
 renderFieldGrid();
 renderSetList();
-
+saveAutoSnapshot();
 
 /* ===== 場地大小設定視窗 ===== */
 const fieldModal = document.getElementById("fieldModal");
@@ -1916,6 +2084,7 @@ fieldForm.addEventListener("submit", function (event) {
     closeFieldModal();
     renderSetList();
     renderFieldGrid();
+    saveAutoSnapshot();
 });
 
 window.addEventListener("resize", renderFieldGrid);

@@ -476,7 +476,8 @@ body {
     white-space: nowrap;
 }
 
-.step-input.invalid {
+.step-input.invalid,
+.counts-row input.invalid {
     border-color: #b42318;
     background-color: #fff5f5;
     box-shadow: 0 0 0 1px #b42318;
@@ -513,7 +514,7 @@ body {
     border: 0;
     border-top: 1px dashed #c5cfdd;
     border-radius: 0;
-    background: #f5f7fa;
+    background: transparent;
     color: #344763;
     font-family: inherit;
     font-size: 13px;
@@ -833,4 +834,40 @@ select:focus-visible {
 
 .point-set-choice-option input {
     accent-color: #263244;
+}
+
+/* 插入絕標按鈕：屬於相鄰 Set 的計算結果區，靠右懸浮並垂直置中。 */
+.calculation-block {
+    padding-right: 48px;
+}
+
+.insert-set-button {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px dashed #c5cfdd;
+    border-radius: 6px;
+    background: transparent;
+    color: #a3adbb;
+    font-family: inherit;
+    font-size: 22px;
+    font-weight: 300;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.insert-set-button:hover {
+    background: rgba(38, 50, 68, 0.06);
+}
+
+.insert-set-button:focus-visible {
+    outline: 2px solid #64748b;
+    outline-offset: 2px;
 }
