@@ -1112,7 +1112,14 @@ setList.addEventListener("click", function (event) {
         ? null
         : clickedId;
 
+    // 側邊收合列直接收起編輯區時，也要清除觸控裝置可能殘留的醒目標示狀態。
+    if (expandedSetId === null) {
+        hoveredSidebarSetId = null;
+        hoveredFieldPointIds.clear();
+    }
+
     renderSetList();
+    updateFieldPointHighlights();
 });
 
 
@@ -1854,6 +1861,9 @@ function renderFieldGrid() {
             if (expandedSetId !== null) {
                 if (!canLeaveExpandedSet()) return;
                 expandedSetId = null;
+                // 觸控裝置可能留下場地圖或側邊清單的 hover 狀態；點擊空白處時一併清除。
+                hoveredFieldPointIds.clear();
+                hoveredSidebarSetId = null;
                 renderSetList();
                 updateFieldPointHighlights();
             }
@@ -1861,6 +1871,9 @@ function renderFieldGrid() {
         svgRoot.querySelectorAll(".field-set-point-group").forEach(group => {
             const id = Number(group.getAttribute("data-set-id"));
             group.addEventListener("click", () => {
+                // 點擊圖點時清除場地圖及側邊清單可能殘留的 hover 狀態，避免多個點同時醒目。
+                hoveredFieldPointIds.clear();
+                hoveredSidebarSetId = null;
                 // 同一位置的連續 Set 視為同一段，只取該段第一個 Set；
                 // 若有多段不連續 Set 共用此位置，讓使用者選擇要開啟哪一段。
                 const clickedPoint = lastValidFieldPoints.get(id);
@@ -1892,14 +1905,17 @@ function renderFieldGrid() {
                 }
                 toggleAndFocusSet(firstOfRuns[0]?.id ?? id);
             });
-            group.addEventListener("mouseenter", () => {
-                hoveredFieldPointIds.add(id);
-                updateFieldPointHighlights();
-            });
-            group.addEventListener("mouseleave", () => {
-                hoveredFieldPointIds.delete(id);
-                updateFieldPointHighlights();
-            });
+            // 只在真正支援滑鼠 hover 的裝置上使用 hover 醒目效果；觸控螢幕不綁定，避免點擊後殘留。
+            if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+                group.addEventListener("mouseenter", () => {
+                    hoveredFieldPointIds.add(id);
+                    updateFieldPointHighlights();
+                });
+                group.addEventListener("mouseleave", () => {
+                    hoveredFieldPointIds.delete(id);
+                    updateFieldPointHighlights();
+                });
+            }
             group.addEventListener("focus", () => {
                 hoveredFieldPointIds.add(id);
                 updateFieldPointHighlights();
@@ -1918,7 +1934,13 @@ function toggleAndFocusSet(id) {
     if (expandedSetId !== null && !canLeaveExpandedSet()) return;
     // 若該 Set 已展開，再點一次圖點就收合；否則展開並捲動到收合列。
     expandedSetId = expandedSetId === id ? null : id;
+    // 收合時同步清除觸控裝置可能殘留的側欄 hover 醒目標示。
+    if (expandedSetId === null) {
+        hoveredSidebarSetId = null;
+        hoveredFieldPointIds.clear();
+    }
     renderSetList();
+    updateFieldPointHighlights();
     if (expandedSetId === null) return;
     window.requestAnimationFrame(() => {
         const summary = setList.querySelector(`.set-row[data-set-id="${id}"] .set-summary`);
