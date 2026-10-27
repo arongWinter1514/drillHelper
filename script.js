@@ -1120,6 +1120,24 @@ setList.addEventListener("click", function (event) {
 
     renderSetList();
     updateFieldPointHighlights();
+
+    // 從側邊收合列展開時，使用與畫圖區點擊相同的捲動效果。
+    if (expandedSetId !== null) {
+        window.requestAnimationFrame(() => {
+            const expandedSummary = setList.querySelector(`.set-row[data-set-id="${clickedId}"] .set-summary`);
+            const scrollContainer = setList.closest(".panel-content");
+            if (!expandedSummary || !scrollContainer) return;
+
+            const containerRect = scrollContainer.getBoundingClientRect();
+            const summaryRect = expandedSummary.getBoundingClientRect();
+            const desiredScrollTop = scrollContainer.scrollTop + summaryRect.top - containerRect.top;
+            const maxScrollTop = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+            scrollContainer.scrollTo({
+                top: Math.min(Math.max(0, desiredScrollTop), maxScrollTop),
+                behavior: "smooth"
+            });
+        });
+    }
 });
 
 
