@@ -896,12 +896,12 @@ select:focus-visible {
 
     .sidebar {
         order: 2;
-        flex: 0 0 60vh;
-        flex-basis: 60vh;
+        flex: 0 0 50vh;
+        flex-basis: 50vh;
         width: 100%;
         min-width: 0;
-        height: 60vh;
-        height: 60dvh;
+        height: 50vh;
+        height: 50dvh;
         border-left: 0;
         border-top: 1px solid #ccd3df;
         transition: height 0.25s ease, flex-basis 0.25s ease;

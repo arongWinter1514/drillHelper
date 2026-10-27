@@ -247,7 +247,7 @@ function createSet(id, label) {
         frontSteps: 0,
 
         // 側標
-        sideMark: 0,
+        sideMark: 1,
         sideDirection: "前",
         sideSteps: 0
     };
@@ -1076,7 +1076,7 @@ setList.addEventListener("click", function (event) {
         const targetSet = sets.find(item => item.id === deleteId);
         if (!targetSet) return;
         pendingDeleteSetId = deleteId;
-        document.getElementById("deleteSetModalTitle").textContent = `確認刪除Set #${targetSet.label}？`;
+        document.getElementById("deleteSetModalTitle").textContent = `確認刪除 Set #${targetSet.label}？`;
         document.getElementById("deleteSetModal").hidden = false;
         return;
     }
