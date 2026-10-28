@@ -19,3 +19,8 @@ A：因為本網頁並未提供下載計算結果的功能。<br>
 
 若有其他疑問或建議，歡迎填寫 [問題回報與意見回饋](https://docs.google.com/forms/d/e/1FAIpQLSesZ_i5hAVAT-NpJyk7n2RIpr8EpBAiHoLeyqTZ6QnDd8a3HQ/viewform) 表單讓我知道～<br>
 最後感謝各位使用圖點預習小助手！希望這個網頁有幫到你～
+
+-
+
+2026/10/30<br>
+正式公開網頁。
