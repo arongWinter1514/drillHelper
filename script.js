@@ -1509,7 +1509,9 @@ async function saveSetsToFile() {
     const json = JSON.stringify(getExportData(), null, 2);
     const blob = new Blob([json], { type: "application/json" });
 
-    if (typeof window.showSaveFilePicker === "function") {
+    // 小於 1200px 時直接下載，不顯示檔案儲存位置選擇器。
+    // 下載的實際資料夾仍由瀏覽器／作業系統決定。
+    if (window.innerWidth >= 1200 && typeof window.showSaveFilePicker === "function") {
         try {
             const handle = await window.showSaveFilePicker({
                 suggestedName: "drill.json",
