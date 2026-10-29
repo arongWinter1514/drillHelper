@@ -367,20 +367,6 @@ function canLeaveExpandedSet() {
 function getCoordinateSummary(set) {
     if (!hasCompleteCoordinates(set)) return "絕標不完整";
 
-    // 若本 Set 的實際座標與前一張相同，收合列以「同前」簡化顯示。
-    const setIndex = sets.findIndex(item => item.id === set.id);
-    if (setIndex > 0) {
-        const previousPoint = getNumericPoint(sets[setIndex - 1]);
-        const currentPoint = getNumericPoint(set);
-        if (
-            previousPoint && currentPoint &&
-            Math.abs(previousPoint.x - currentPoint.x) < 1e-9 &&
-            Math.abs(previousPoint.y - currentPoint.y) < 1e-9
-        ) {
-            return "同前";
-        }
-    }
-
     let frontText = String(set.frontMark);
 
     // 50 是中央碼線，不顯示 L/R。
